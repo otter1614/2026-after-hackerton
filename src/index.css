@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ghost-black: #050505;
+  --color-ghost-surface: #101010;
+  --color-ghost-purple: #9d00ff;
+  --color-ghost-neon: #00ff00;
+  --color-ghost-blood: #ff0055;
+  --color-ghost-border: #3a0066;
+  
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-ghost-black text-[#e0e0e0] font-mono selection:bg-ghost-neon selection:text-black;
+  }
+}
+
+@layer components {
+  .bento-card {
+    @apply bg-ghost-surface border border-ghost-border rounded-none p-4 transition-all duration-300 shadow-[inset_0_0_10px_rgba(58,0,102,0.1)];
+  }
+  
+  .tactical-label {
+    @apply text-[9px] text-[#666] uppercase tracking-[0.2em] font-bold mb-1;
+  }
+
+  .scan-line {
+    @apply absolute top-0 left-0 w-full h-[1px] bg-ghost-neon/30 z-10;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+    animation: scan 3s linear infinite;
+  }
+
+  .neon-text-glow {
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  }
+}
+
+@keyframes scan {
+  0% { top: 0%; opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes glitch {
+  0% { transform: translate(0) }
+  20% { transform: translate(-2px, 1px) }
+  40% { transform: translate(-2px, -1px) }
+  60% { transform: translate(2px, 1px) }
+  80% { transform: translate(2px, -1px) }
+  100% { transform: translate(0) }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Ghost Hunters",
+  "description": "Location-based horror exploration and crime prevention data collection app.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "Location Tracking",
+    "AI Image Analysis",
+    "Real-time Hazard Mapping"
+  ]
+}
