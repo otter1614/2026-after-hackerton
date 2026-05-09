@@ -10,6 +10,11 @@ const Explore = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+
+  //스캔관련 추가
+const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   // 실시간 카메라 시작
   useEffect(() => {
     async function setupCamera() {
@@ -37,57 +42,33 @@ const Explore = () => {
     };
   }, []);
 
-  const startScan = async () => {
-    if (!videoRef.current) return;
-    
-    setIsScanning(true);
+const startScan = async () => {
+  if (!uploadedFile) {
+    alert("이미지를 업로드해주세요.");
+    return;
+  }
 
-    try {
-      // 서버 API 호출 (시뮬레이션 데이터 포함)
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          brightness: Math.floor(Math.random() * 40), 
-          cctvCount: Math.floor(Math.random() * 3),
-          populationDensity: Math.random() * 0.3,
-          isAbandoned: true,
-          crimeStatsWeight: 0.8
-        })
-      });
-      
-      const result = await response.json();
-      
-      // 분석 시간 지연 시뮬레이션
-      setTimeout(() => {
-        setIsScanning(false);
-        const finalResult = {
-          ...result,
-          address: '경남 창원시 성산구 중앙동 일대',
-          threats: ['가로등 조도 부족', '사각지대 노출', '방치된 시설물'],
-          ghostName: '창원의 그림자 기사'
-        };
-        setScanResult(finalResult);
+  setIsScanning(true);
 
-        // 지도용 스팟 저장 (로컬 스토리지 공유)
-        const existingSpots = JSON.parse(localStorage.getItem('ghost_spots') || '[]');
-        const newSpot = {
-          id: Date.now(),
-          lat: 35.2275 + (Math.random() - 0.5) * 0.015,
-          lng: 128.6811 + (Math.random() - 0.5) * 0.015,
-          grade: finalResult.grade,
-          risk: finalResult.score
-        };
-        localStorage.setItem('ghost_spots', JSON.stringify([...existingSpots, newSpot]));
-        
-        setTimeout(() => setIsMonsterModal(true), 1500);
-      }, 3000);
+  try {
+    const formData = new FormData();
+    formData.append("file", uploadedFile);
 
-    } catch (error) {
-      console.error("분석 오류:", error);
-      setIsScanning(false);
-    }
-  };
+    const response = await fetch("http://localhost:8000/analyze", {
+      method: "POST",
+      body: formData
+    });
+
+    const result = await response.json();
+
+    setScanResult(result);
+
+  } catch (error) {
+    console.error("분석 실패:", error);
+  } finally {
+    setIsScanning(false);
+  }
+};
 
   return (
     <motion.div 
@@ -161,8 +142,22 @@ const Explore = () => {
         >
           현장 스캔 개시
         </button>
+        
       )}
 
+  {/* 파일 업로드 (스캔 대체용) */  }
+<input
+  type="file"
+  accept="image/*"
+  onChange={(e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  }}
+  className="text-white mt-2"
+/>
       {/* 분석 결과 카드 */}
       {scanResult && !isScanning && (
         <motion.div 
@@ -181,12 +176,7 @@ const Explore = () => {
           <div className="col-span-2 bento-card">
             <div className="tactical-label">상세 위험 요소 분석</div>
             <div className="space-y-1 mt-2">
-              {scanResult.threats.map((threat: string, idx: number) => (
-                <div key={idx} className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-tighter">
-                  <span className="w-1.5 h-1.5 bg-ghost-blood" />
-                  <span className="text-white/80">{threat}</span>
-                </div>
-              ))}
+          
             </div>
             <button 
               onClick={() => { setScanResult(null); }}
