@@ -80,12 +80,18 @@ async function startServer() {
       let photoPath: string | null = null;
       let result;
 
+      // FormData 필드: lat, lng, address (선택)
+      const latRaw = req.body?.lat;
+      const lngRaw = req.body?.lng;
+      const lat = latRaw !== undefined && latRaw !== '' ? Number(latRaw) : null;
+      const lng = lngRaw !== undefined && lngRaw !== '' ? Number(lngRaw) : null;
+      const address = req.body?.address ? String(req.body.address) : null;
+
       if (req.file) {
         photoPath = `/uploads/${req.file.filename}`;
         const buffer = fs.readFileSync(req.file.path);
         result = await analyzeImage(buffer, req.file.mimetype);
       } else {
-        // 사진 없이 호출돼도 폴백으로 더미 결과 반환
         result = await analyzeImage(Buffer.alloc(0), 'image/jpeg');
       }
 
@@ -94,8 +100,8 @@ async function startServer() {
 
       db.prepare(`
         INSERT INTO horror_reports
-          (id, userId, photoPath, scores, horrorGrade, horrorScore, dangerScore, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          (id, userId, photoPath, scores, horrorGrade, horrorScore, dangerScore, timestamp, lat, lng, address)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         reportId,
         userId,
@@ -104,10 +110,12 @@ async function startServer() {
         result.horrorGrade,
         result.horrorScore,
         result.dangerScore,
-        timestamp
+        timestamp,
+        Number.isFinite(lat as number) ? lat : null,
+        Number.isFinite(lng as number) ? lng : null,
+        address
       );
 
-      // 누적 점수·평균 등급 업데이트
       db.prepare(`
         UPDATE users
         SET cumulativeScore = cumulativeScore + ?,
@@ -125,6 +133,9 @@ async function startServer() {
         dangerScore: result.dangerScore,
         source: result.source,
         timestamp,
+        lat,
+        lng,
+        address,
       });
     } catch (err) {
       console.error('[analyze-horror] error:', err);
@@ -181,6 +192,101 @@ async function startServer() {
   app.delete("/api/spots", (_req, res) => {
     db.prepare('DELETE FROM ghost_spots').run();
     res.json({ ok: true });
+  });
+
+  // 범죄 유형별 은닉 추정 장소 TOP N
+  // 가중치: 각 범죄 유형이 어떤 환경 요소와 상관 높은지 휴리스틱
+  const CRIME_WEIGHTS: Record<string, Record<string, number>> = {
+    '절도': { abandoned: 0.25, graffiti: 0.20, lowPopulation: 0.30, brightness: 0.10, structuralHazard: 0.15 },
+    '폭행': { brightness: 0.30, lowPopulation: 0.30, eerieEnvironment: 0.20, structuralHazard: 0.20 },
+    '마약': { abandoned: 0.35, structuralHazard: 0.25, lowPopulation: 0.30, graffiti: 0.10 },
+    '성범죄': { brightness: 0.30, lowPopulation: 0.35, abandoned: 0.20, eerieEnvironment: 0.15 },
+    '도주': { abandoned: 0.30, lowPopulation: 0.25, structuralHazard: 0.25, brightness: 0.20 },
+    '강도': { brightness: 0.25, lowPopulation: 0.30, abandoned: 0.20, structuralHazard: 0.15, eerieEnvironment: 0.10 },
+    '방화': { abandoned: 0.40, structuralHazard: 0.25, lowPopulation: 0.20, graffiti: 0.15 },
+  };
+  const DEFAULT_WEIGHTS = {
+    brightness: 0.20, abandoned: 0.20, graffiti: 0.15,
+    lowPopulation: 0.20, eerieEnvironment: 0.10, structuralHazard: 0.15,
+  };
+
+  app.get("/api/hideouts", (req, res) => {
+    const crime = (req.query.crime as string) || '';
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
+    const weights = CRIME_WEIGHTS[crime] ?? DEFAULT_WEIGHTS;
+
+    const rows = db
+      .prepare(`
+        SELECT * FROM horror_reports
+        WHERE lat IS NOT NULL AND lng IS NOT NULL
+        ORDER BY timestamp DESC
+      `)
+      .all() as HorrorReport[];
+
+    const scored = rows.map((r) => {
+      let scoresObj: any = {};
+      try { scoresObj = JSON.parse(r.scores); } catch {}
+      let matchScore = 0;
+      let weightSum = 0;
+      for (const [key, w] of Object.entries(weights)) {
+        const v = Number(scoresObj[key] ?? 0);
+        matchScore += v * w;
+        weightSum += w;
+      }
+      matchScore = weightSum > 0 ? matchScore / weightSum : 0;
+      return {
+        id: r.id,
+        lat: r.lat,
+        lng: r.lng,
+        address: r.address,
+        horrorGrade: r.horrorGrade,
+        horrorScore: r.horrorScore,
+        dangerScore: r.dangerScore,
+        scores: scoresObj,
+        matchScore: Math.round(matchScore),
+        timestamp: r.timestamp,
+        photoPath: r.photoPath,
+      };
+    });
+
+    scored.sort((a, b) => b.matchScore - a.matchScore);
+    res.json({
+      crime: crime || '미지정',
+      weights,
+      total: scored.length,
+      results: scored.slice(0, limit),
+    });
+  });
+
+  // safemap WMS 프록시 (서비스키 클라이언트 노출 방지)
+  app.get("/api/safemap/wms", async (req, res) => {
+    const apiKey = process.env.SAFEMAP_API_KEY;
+    if (!apiKey) {
+      return res.status(503).send('SAFEMAP_API_KEY not set');
+    }
+
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(req.query)) {
+      if (typeof v === 'string') params.set(k.toLowerCase(), v);
+      else if (Array.isArray(v)) params.set(k.toLowerCase(), String(v[0]));
+    }
+    params.set('serviceKey', apiKey);
+
+    const upstream = `https://www.safemap.go.kr/openApi2/IF_0087_WMS?${params.toString()}`;
+
+    try {
+      const r = await fetch(upstream);
+      if (!r.ok) {
+        return res.status(r.status).send(await r.text());
+      }
+      res.set('Content-Type', r.headers.get('content-type') ?? 'image/png');
+      res.set('Cache-Control', 'public, max-age=3600');
+      const buf = Buffer.from(await r.arrayBuffer());
+      res.send(buf);
+    } catch (err) {
+      console.error('[safemap proxy] error:', err);
+      res.status(502).send('upstream failed');
+    }
   });
 
   // 핫스팟 (정적)

@@ -1,7 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { LayoutDashboard, ShieldCheck, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, ShieldCheck, ArrowRight, Search, MapPin, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+
+const CRIME_PRESETS = ['절도', '폭행', '마약', '성범죄', '도주', '강도', '방화'];
+
+interface Hideout {
+  id: string;
+  lat: number | null;
+  lng: number | null;
+  address: string | null;
+  horrorGrade: string;
+  horrorScore: number;
+  dangerScore: number;
+  matchScore: number;
+  scores: any;
+  timestamp: string;
+  photoPath: string | null;
+}
 
 const data = [
   { name: '창원 성산', risk: 85 },
@@ -18,6 +34,33 @@ const priorityHotspots = [
 ];
 
 const PoliceDashboard = () => {
+  const [crimeInput, setCrimeInput] = useState<string>('절도');
+  const [hideouts, setHideouts] = useState<Hideout[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchedCrime, setSearchedCrime] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const searchHideouts = async () => {
+    const crime = crimeInput.trim();
+    if (!crime) return;
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`/api/hideouts?crime=${encodeURIComponent(crime)}&limit=10`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setHideouts(data.results ?? []);
+      setSearchedCrime(crime);
+      if (!data.results?.length) {
+        setErrorMsg('DB에 등록된 위치 기반 분석 데이터가 없습니다. Explore 페이지에서 사진 업로드 분석을 먼저 진행하세요.');
+      }
+    } catch (err) {
+      setErrorMsg('검색 실패: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -104,6 +147,7 @@ const PoliceDashboard = () => {
           </div>
         </div>
 
+        {/*
         <div className="ghost-panel flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0b0708]/95 border border-[#36131c]">
           <div>
             <span className="text-xs font-bold text-ghost-cream uppercase tracking-tighter">긴급 브로드캐스트</span>
@@ -112,6 +156,98 @@ const PoliceDashboard = () => {
           <button className="ghost-button bg-[#6f1720] border-[#8f1e29] px-6 py-3 text-[#f5d4d5] hover:bg-[#8c1e2a]/95">
             전송 개시
           </button>
+        </div>
+        */}
+
+        {/* 범죄 유형별 은닉 추정 장소 */}
+        <div className="bento-card bg-[#0a0608]/95 border border-[#351013] mt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Search size={14} className="text-[#bc5b67]" />
+            <span className="tactical-label">범죄 유형 기반 은닉 추정 장소 분석</span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {CRIME_PRESETS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCrimeInput(c)}
+                className={`text-[10px] px-2 py-1 border font-bold uppercase tracking-tighter transition-all ${
+                  crimeInput === c
+                    ? 'bg-[#7f1d25] border-[#bc5b67] text-white'
+                    : 'border-[#36131c] text-[#9a9a9a] hover:border-[#7f1d25]'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={crimeInput}
+              onChange={(e) => setCrimeInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && searchHideouts()}
+              placeholder="범죄 유형 입력 (예: 절도, 폭행)"
+              className="flex-1 bg-[#0b0709] border border-[#36131c] px-3 py-2 text-xs text-ghost-cream placeholder-[#5a3a3e] focus:outline-none focus:border-[#7f1d25]"
+            />
+            <button
+              onClick={searchHideouts}
+              disabled={loading || !crimeInput.trim()}
+              className="px-4 py-2 bg-[#7f1d25] border border-[#bc5b67] text-white font-black text-[10px] uppercase tracking-tighter hover:bg-[#9a2530] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              {loading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+              {loading ? '분석 중' : '추적 개시'}
+            </button>
+          </div>
+
+          {errorMsg && (
+            <div className="mt-3 text-[10px] text-[#c56a72] font-bold p-2 bg-[#7f1d25]/10 border border-[#7f1d25]/30">
+              {errorMsg}
+            </div>
+          )}
+
+          {searchedCrime && hideouts.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <div className="text-[10px] text-[#9a9a9a] font-bold uppercase tracking-widest mb-2">
+                "{searchedCrime}" 매칭 TOP {hideouts.length} 은닉 추정 장소
+              </div>
+              {hideouts.map((h, idx) => (
+                <motion.div
+                  key={h.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.04 }}
+                  className={`flex items-center gap-3 p-2.5 border border-[#2d141a] bg-[#0b0709]/80 ${
+                    idx < 3 ? 'border-l-4 border-l-[#bc5b67]' : 'border-l-4 border-l-[#4d1118]'
+                  }`}
+                >
+                  <div className="w-7 h-7 flex items-center justify-center font-black text-xs bg-[#7f1d25]/30 text-[#f4d5d3]">
+                    {String(idx + 1).padStart(2, '0')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <MapPin size={10} className="text-[#bc5b67] shrink-0" />
+                      <span className="text-xs font-bold text-ghost-cream tracking-tighter truncate">
+                        {h.address ?? (h.lat && h.lng ? `${h.lat.toFixed(4)}, ${h.lng.toFixed(4)}` : '위치 미상')}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[9px] font-bold uppercase">
+                      <span className="text-[#9a9a9a]">공포 <span className="text-ghost-cream">{h.horrorGrade}</span></span>
+                      <span className="text-[#9a9a9a]">위험 <span className="text-[#c56a72]">{h.dangerScore}</span></span>
+                      <span className="text-[#9a9a9a]">조도 {h.scores?.brightness ?? 0}</span>
+                      <span className="text-[#9a9a9a]">폐 {h.scores?.abandoned ?? 0}</span>
+                      <span className="text-[#9a9a9a]">유동 {h.scores?.lowPopulation ?? 0}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-black text-[#c56a72] leading-none">{h.matchScore}</div>
+                    <div className="text-[8px] text-[#9a9a9a] uppercase mt-0.5">매칭</div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

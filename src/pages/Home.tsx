@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Loader2, CloudLightning, RefreshCw } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { Loader2, CloudLightning, RefreshCw, ShieldAlert } from 'lucide-react';
+import { MapContainer, TileLayer, WMSTileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 // 기본 마커 아이콘 깨짐 방지 (Leaflet + 번들러 이슈 회피)
@@ -67,6 +67,7 @@ const Home = () => {
   const mapRef = useRef<L.Map | null>(null);
   const [ranking, setRanking] = useState<any[]>([]);
   const [myStats, setMyStats] = useState<any>(null);
+  const [showCrimeZones, setShowCrimeZones] = useState(true);
 
   useEffect(() => {
     const timer = setTimeout(() => setMapLoaded(true), 800);
@@ -179,6 +180,19 @@ const Home = () => {
             maxZoom={19}
           />
 
+          {/* 생활안전지도 범죄주의구간 WMS 오버레이 */}
+          {showCrimeZones && (
+            <WMSTileLayer
+              url="/api/safemap/wms"
+              layers="A2SM_CRMNLHSPOT_TOT"
+              styles="A2SM_CrmnlHspot_Tot_Tot"
+              format="image/png"
+              transparent={true}
+              version="1.1.1"
+              opacity={0.55}
+            />
+          )}
+
           {myPos && (
             <Marker position={myPos} icon={myLocationIcon}>
               <Popup>현재 위치 (수신자)</Popup>
@@ -224,12 +238,26 @@ const Home = () => {
           </div>
         </div>
 
-        <button
-          onClick={clearData}
-          className="absolute bottom-4 left-4 p-2 bg-black/80 border border-ghost-border text-ghost-purple hover:text-ghost-blood transition-colors z-[450]"
-        >
-          <RefreshCw size={14} />
-        </button>
+        <div className="absolute bottom-4 left-4 flex gap-2 z-[450]">
+          <button
+            onClick={clearData}
+            className="p-2 bg-black/80 border border-ghost-border text-ghost-purple hover:text-ghost-blood transition-colors"
+            title="고스트 스팟 초기화"
+          >
+            <RefreshCw size={14} />
+          </button>
+          <button
+            onClick={() => setShowCrimeZones((v) => !v)}
+            className={`p-2 border transition-colors ${
+              showCrimeZones
+                ? 'bg-ghost-blood/20 border-ghost-blood text-ghost-blood'
+                : 'bg-black/80 border-ghost-border text-ghost-purple hover:text-ghost-blood'
+            }`}
+            title="범죄주의구간 표시 토글"
+          >
+            <ShieldAlert size={14} />
+          </button>
+        </div>
 
         <button
           onClick={recenterToMe}

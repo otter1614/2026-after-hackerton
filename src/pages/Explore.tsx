@@ -89,8 +89,44 @@ const Explore = () => {
     setScanResult(null);
 
     try {
+      // 현재 위치 + 주소 수집 (실패 시 null)
+      const coords = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      });
+
+      let resolvedAddress: string | null = null;
+      if (coords) {
+        try {
+          const geo = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}&accept-language=ko&zoom=16`
+          );
+          if (geo.ok) {
+            const g = await geo.json();
+            const a = g.address ?? {};
+            const parts = [
+              a.province ?? a.state,
+              a.city ?? a.county,
+              a.borough ?? a.suburb ?? a.city_district,
+              a.neighbourhood ?? a.quarter ?? a.village,
+              a.road,
+            ].filter(Boolean);
+            resolvedAddress = parts.length ? parts.join(' ') : (g.display_name ?? null);
+          }
+        } catch {}
+      }
+
       const formData = new FormData();
       formData.append('photo', file);
+      if (coords) {
+        formData.append('lat', String(coords.lat));
+        formData.append('lng', String(coords.lng));
+      }
+      if (resolvedAddress) formData.append('address', resolvedAddress);
 
       const response = await fetch('/api/analyze-horror', {
         method: 'POST',
@@ -107,8 +143,8 @@ const Explore = () => {
       const existingSpots = JSON.parse(localStorage.getItem('ghost_spots') || '[]');
       const newSpot = {
         id: Date.now(),
-        lat: 35.2275 + (Math.random() - 0.5) * 0.015,
-        lng: 128.6811 + (Math.random() - 0.5) * 0.015,
+        lat: coords?.lat ?? 35.2275 + (Math.random() - 0.5) * 0.015,
+        lng: coords?.lng ?? 128.6811 + (Math.random() - 0.5) * 0.015,
         grade: result.horrorGrade ?? 'B',
         risk: result.horrorScore ?? 0,
       };
