@@ -16,6 +16,21 @@ export const CHANGWON_DISTRICTS: District[] = [
   { name: '진해구',     center: [35.1379, 128.6843], radius: 0.030, crimeDensity: 65, dominantCrime: '폭행' },
 ];
 
+// 창원폴리텍대학 (경상남도 창원시 의창구 봉림로 53) — 영체 실제 스폰 중심점
+// district 필드는 등급/HP/ATK 계산용 밀도 출처 라벨로만 의미를 가짐
+const POLYTECH_CENTER: [number, number] = [35.2540, 128.6748];
+const POLYTECH_MIN_R = 0.0015; // 약 ~150m
+const POLYTECH_MAX_R = 0.0080; // 약 ~800m
+
+function spawnNearPolytech(): [number, number] {
+  const r = POLYTECH_MIN_R + Math.random() * (POLYTECH_MAX_R - POLYTECH_MIN_R);
+  const theta = Math.random() * Math.PI * 2;
+  return [
+    POLYTECH_CENTER[0] + r * Math.cos(theta),
+    POLYTECH_CENTER[1] + r * Math.sin(theta),
+  ];
+}
+
 const GHOST_NAME_POOL = [
   '창원의 그림자 기사',
   '폐선의 망령',
@@ -78,9 +93,8 @@ export function generateGhosts(count = 5): Ghost[] {
   const ghosts: Ghost[] = [];
   for (let i = 0; i < count; i++) {
     const d = pickWeightedDistrict();
-    // 구역 내 무작위 좌표
-    const lat = d.center[0] + (Math.random() - 0.5) * d.radius * 2;
-    const lng = d.center[1] + (Math.random() - 0.5) * d.radius * 2;
+    // 실제 위치는 창원폴리텍대학 인근, 등급/스탯은 d.crimeDensity 기준
+    const [lat, lng] = spawnNearPolytech();
 
     let name: string;
     do {
