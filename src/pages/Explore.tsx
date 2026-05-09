@@ -97,20 +97,20 @@ const Explore = () => {
       className="p-4 space-y-6 flex flex-col h-full"
     >
       {/* 상단 정보 */}
-      <div className="flex items-center gap-3 bg-ghost-surface border border-ghost-border p-3">
-        <MapPin size={18} className="text-ghost-purple shrink-0" />
+      <div className="ghost-panel flex items-center gap-3">
+        <MapPin size={18} className="text-ghost-crimson shrink-0" />
         <div className="flex-1 overflow-hidden">
           <div className="tactical-label">현재 작전 지역</div>
-          <div className="text-sm font-bold truncate tracking-tighter uppercase">경상남도 창원시 성산구 // 보안 등급: 7</div>
+          <div className="text-sm font-bold truncate tracking-tighter uppercase text-white">경상남도 창원시 성산구 // 보안 등급: 7</div>
         </div>
       </div>
 
       {/* 실시간 카메라 프리뷰 */}
       <div className="bento-card !p-2 flex flex-col gap-2 relative">
         <div className="flex justify-between items-center px-1">
-          <span className="text-[10px] bg-ghost-neon text-black px-1 font-bold tracking-tighter">실시간_스캔_채널_01</span>
-          <span className="text-[10px] text-ghost-neon flex items-center gap-1 font-bold">
-            <span className="w-1.5 h-1.5 bg-ghost-neon rounded-full animate-pulse" />
+          <span className="text-[10px] bg-ghost-crimson text-black px-1 font-bold tracking-tighter">실시간_스캔_채널_01</span>
+          <span className="text-[10px] text-ghost-crimson flex items-center gap-1 font-bold">
+            <span className="w-1.5 h-1.5 bg-ghost-crimson rounded-full animate-pulse" />
             LIVE SCANNING
           </span>
         </div>
@@ -133,8 +133,8 @@ const Explore = () => {
           <canvas ref={canvasRef} className="hidden" />
           
           {/* 뷰파인더 그래픽 */}
-          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'repeating-linear-gradient(0deg, #000, #000 2px, #00ff00 3px)' }} />
-          <div className="absolute inset-4 border border-ghost-neon/20 pointer-events-none" />
+          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'repeating-linear-gradient(0deg, #000, #000 2px, rgba(217,63,79,0.1) 3px)' }} />
+          <div className="absolute inset-4 border border-ghost-crimson/20 pointer-events-none" />
 
           <AnimatePresence>
             {isScanning && (
@@ -142,10 +142,10 @@ const Explore = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-[#00ff0011] backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center z-20"
+                className="absolute inset-0 bg-ghost-blood/10 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center z-20"
               >
                 <div className="scan-line" />
-                <h3 className="text-xl font-black tracking-widest text-ghost-neon mb-2">잔류 에너지 분석 중...</h3>
+                <h3 className="text-xl font-black tracking-widest text-ghost-cream mb-2">잔류 에너지 분석 중...</h3>
                 <div className="text-[10px] font-bold text-white/50 animate-pulse tracking-[0.4em]">DECRYPTING_SIGNATURES</div>
               </motion.div>
             )}
@@ -157,7 +157,7 @@ const Explore = () => {
       {!scanResult && !isScanning && (
         <button 
           onClick={startScan}
-          className="w-full py-5 border-2 border-ghost-neon bg-ghost-neon/5 text-ghost-neon font-black uppercase tracking-[0.2em] hover:bg-ghost-neon hover:text-black transition-all mb-4"
+          className="w-full py-5 ghost-button mb-4"
         >
           현장 스캔 개시
         </button>
@@ -170,9 +170,9 @@ const Explore = () => {
           animate={{ opacity: 1, y: 0 }}
           className="grid grid-cols-2 gap-4"
         >
-          <div className="bento-card border-l-4 border-l-ghost-neon">
+          <div className="bento-card border-l-4 border-l-ghost-crimson">
             <div className="tactical-label">혼령 등급</div>
-            <div className="text-4xl font-black text-white">{scanResult.grade}-RANK</div>
+            <div className="text-4xl font-black text-ghost-cream">{scanResult.grade}-RANK</div>
           </div>
           <div className="bento-card border-l-4 border-l-ghost-blood">
             <div className="tactical-label">위험 수치</div>
@@ -190,7 +190,7 @@ const Explore = () => {
             </div>
             <button 
               onClick={() => { setScanResult(null); }}
-              className="mt-6 w-full border border-ghost-purple py-3 text-[10px] text-ghost-purple font-bold uppercase hover:bg-ghost-purple hover:text-black transition-all flex items-center justify-center gap-2"
+              className="mt-6 w-full border border-ghost-crimson py-3 text-[10px] text-ghost-crimson font-bold uppercase hover:bg-ghost-crimson/15 hover:text-black transition-all flex items-center justify-center gap-2"
             >
               <RefreshCw size={12} />
               데이터 캐시 정화
