@@ -69,10 +69,26 @@ const Home = () => {
   const [dynamicSpots, setDynamicSpots] = useState<any[]>([]);
   const [myPos, setMyPos] = useState<[number, number] | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const [ranking, setRanking] = useState<any[]>([]);
+  const [myStats, setMyStats] = useState<any>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setMapLoaded(true), 800);
 
+    const fetchData = async () => {
+      try {
+        const [rankRes, statsRes] = await Promise.all([
+          fetch('/api/ranking'),
+          fetch('/api/my-stats')
+        ]);
+        setRanking(await rankRes.json());
+        setMyStats(await statsRes.json());
+      } catch (error) {
+        console.error("데이터 로딩 오류:", error);
+      }
+    };
+
+    fetchData();
     const loadSpots = () => {
       const spots = JSON.parse(localStorage.getItem('ghost_spots') || '[]');
       setDynamicSpots(spots);
@@ -124,9 +140,21 @@ const Home = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="h-full flex flex-col"
+      className="h-full flex flex-col p-2 gap-4 overflow-y-auto"
     >
-      <div className="relative flex-1 bg-[#101010] overflow-hidden border-2 border-ghost-border m-2">
+      {/* Dashboard Section */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bento-card bg-ghost-surface border-l-4 border-l-ghost-neon">
+          <div className="tactical-label">내 평균 조도 위험 등급</div>
+          <div className="text-4xl font-black text-white">{myStats?.averageBrightnessGrade || 'B'}</div>
+        </div>
+        <div className="bento-card bg-ghost-surface border-l-4 border-l-ghost-blood">
+          <div className="tactical-label">총 누적 공포 지수</div>
+          <div className="text-4xl font-black text-white">{myStats?.cumulativeScore || 0}</div>
+        </div>
+      </div>
+
+      <div className="relative h-[300px] bg-[#101010] overflow-hidden border-2 border-ghost-border">
         {!mapLoaded && (
           <div className="absolute inset-0 z-[500] flex flex-col items-center justify-center bg-ghost-black">
             <Loader2 className="w-12 h-12 text-ghost-neon animate-spin mb-4" />
@@ -188,11 +216,7 @@ const Home = () => {
           <div className="bg-black/80 border border-ghost-border p-3 backdrop-blur-md">
             <div className="tactical-label">활성 작전 구역</div>
             <div className="text-lg font-black tracking-tighter uppercase leading-none text-white">
-              CHANGWON_CITY_MAIN
-            </div>
-            <div className="text-[9px] text-ghost-purple italic mt-1 font-bold">
-              좌표: {(myPos ?? CHANGWON_CENTER)[0].toFixed(4)}° N,{' '}
-              {(myPos ?? CHANGWON_CENTER)[1].toFixed(4)}° E
+              CHANGWON_CITY
             </div>
           </div>
 
@@ -219,22 +243,28 @@ const Home = () => {
         </button>
       </div>
 
-      <div className="h-24 grid grid-cols-4 gap-2 px-2 pb-2">
-        <div className="bento-card flex flex-col justify-center">
-          <span className="tactical-label">지역 범죄 지수</span>
-          <span className="text-xl font-black text-ghost-neon tracking-tighter">84.2%</span>
+      {/* Ranking List Section */}
+      <div className="bento-card flex-1 bg-ghost-surface border border-ghost-border overflow-hidden flex flex-col">
+        <div className="flex justify-between items-center mb-4">
+          <span className="tactical-label">TOP 10 공포 수집가 랭킹</span>
+          <span className="text-[10px] text-ghost-neon font-bold animate-pulse">RANKING_REALTIME</span>
         </div>
-        <div className="bento-card flex flex-col justify-center">
-          <span className="tactical-label">평균 조도</span>
-          <span className="text-xl font-black text-ghost-neon tracking-tighter">12 LUX</span>
-        </div>
-        <div className="bento-card flex flex-col justify-center">
-          <span className="tactical-label">CCTV 밀도</span>
-          <span className="text-lg font-black text-white uppercase tracking-tighter">낮음</span>
-        </div>
-        <div className="bento-card flex flex-col justify-center">
-          <span className="tactical-label">위험 등급</span>
-          <span className="text-xl font-black text-ghost-blood tracking-tighter">S-위험</span>
+        <div className="space-y-2 overflow-y-auto">
+          {ranking.map((user, idx) => (
+            <div key={user.id} className="flex items-center gap-4 p-2 border-b border-white/5 hover:bg-white/5 transition-colors">
+              <div className={`w-6 h-6 flex items-center justify-center font-black text-xs ${idx < 3 ? 'text-ghost-neon bg-ghost-neon/20' : 'text-white/50'}`}>
+                {idx + 1}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold text-white tracking-tighter">{user.name}</div>
+                <div className="text-[9px] text-white/40 uppercase">Grade: {user.averageBrightnessGrade}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-black text-ghost-blood">{user.cumulativeScore}</div>
+                <div className="text-[8px] text-white/30 uppercase">POINTS</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </motion.div>

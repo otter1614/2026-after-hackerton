@@ -7,8 +7,47 @@ const Explore = () => {
   const [scanResult, setScanResult] = useState<any>(null);
   const [isMonsterModal, setIsMonsterModal] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [currentArea, setCurrentArea] = useState<string>('위치 확인 중...');
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 현재 위치 → 역지오코딩 (OSM Nominatim, 키 불필요)
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setCurrentArea('위치 서비스 미지원');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=ko&zoom=14`
+          );
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const a = data.address ?? {};
+          const parts = [
+            a.province ?? a.state,
+            a.city ?? a.county,
+            a.borough ?? a.suburb ?? a.city_district,
+            a.neighbourhood ?? a.quarter ?? a.village,
+          ].filter(Boolean);
+          setCurrentArea(parts.length ? parts.join(' ') : (data.display_name ?? '위치 식별 실패'));
+        } catch (err) {
+          console.warn('역지오코딩 실패:', err);
+          setCurrentArea(`좌표: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        }
+      },
+      (err) => {
+        console.warn('위치 권한 실패:', err.message);
+        setCurrentArea('위치 권한 거부됨');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, []);
 
   // 실시간 카메라 시작
   useEffect(() => {
@@ -37,9 +76,56 @@ const Explore = () => {
     };
   }, []);
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // 즉시 미리보기 (스캐닝 박스에 표시)
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+
+    setIsScanning(true);
+    setScanResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+
+      const response = await fetch('/api/analyze-horror', {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await response.json();
+
+      setIsScanning(false);
+      setScanResult({
+        ...result,
+        ghostName: '공포의 잔영',
+      });
+
+      const existingSpots = JSON.parse(localStorage.getItem('ghost_spots') || '[]');
+      const newSpot = {
+        id: Date.now(),
+        lat: 35.2275 + (Math.random() - 0.5) * 0.015,
+        lng: 128.6811 + (Math.random() - 0.5) * 0.015,
+        grade: result.horrorGrade ?? 'B',
+        risk: result.horrorScore ?? 0,
+      };
+      localStorage.setItem('ghost_spots', JSON.stringify([...existingSpots, newSpot]));
+      // 모달 자동 표시 X — 사용자가 버튼 눌러야 뜸
+    } catch (error) {
+      console.error('분석 오류:', error);
+      setIsScanning(false);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const startScan = async () => {
     if (!videoRef.current) return;
-    
+
+    setPhotoPreview(null);
     setIsScanning(true);
 
     try {
@@ -101,7 +187,7 @@ const Explore = () => {
         <MapPin size={18} className="text-ghost-purple shrink-0" />
         <div className="flex-1 overflow-hidden">
           <div className="tactical-label">현재 작전 지역</div>
-          <div className="text-sm font-bold truncate tracking-tighter uppercase">경상남도 창원시 성산구 // 보안 등급: 7</div>
+          <div className="text-sm font-bold truncate tracking-tighter uppercase">{currentArea}</div>
         </div>
       </div>
 
@@ -116,16 +202,22 @@ const Explore = () => {
         </div>
         
         <div className="relative aspect-video w-full overflow-hidden bg-black flex items-center justify-center border border-ghost-border">
-          {hasPermission === false ? (
+          {photoPreview ? (
+            <img
+              src={photoPreview}
+              alt="업로드된 사진"
+              className="w-full h-full object-cover grayscale contrast-125 opacity-80"
+            />
+          ) : hasPermission === false ? (
             <div className="text-center p-8">
               <ShieldAlert className="mx-auto text-ghost-blood mb-2" />
               <p className="text-xs text-ghost-blood font-bold">카메라 권한이 거부되었습니다.</p>
             </div>
           ) : (
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
               className="w-full h-full object-cover grayscale opacity-60"
             />
           )}
@@ -155,47 +247,128 @@ const Explore = () => {
 
       {/* 스캔 버튼 */}
       {!scanResult && !isScanning && (
-        <button 
-          onClick={startScan}
-          className="w-full py-5 border-2 border-ghost-neon bg-ghost-neon/5 text-ghost-neon font-black uppercase tracking-[0.2em] hover:bg-ghost-neon hover:text-black transition-all mb-4"
-        >
-          현장 스캔 개시
-        </button>
+        <div className="flex flex-col gap-2 mb-4">
+          <button
+            onClick={startScan}
+            className="w-full py-5 border-2 border-ghost-neon bg-ghost-neon/5 text-ghost-neon font-black uppercase tracking-[0.2em] hover:bg-ghost-neon hover:text-black transition-all"
+          >
+            현장 스캔 개시
+          </button>
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full py-3 border border-ghost-purple bg-ghost-purple/5 text-ghost-purple font-bold uppercase tracking-[0.1em] hover:bg-ghost-purple hover:text-black transition-all"
+          >
+            사진 업로드 분석
+          </button>
+        </div>
       )}
 
       {/* 분석 결과 카드 */}
       {scanResult && !isScanning && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="grid grid-cols-2 gap-4"
         >
-          <div className="bento-card border-l-4 border-l-ghost-neon">
-            <div className="tactical-label">혼령 등급</div>
-            <div className="text-4xl font-black text-white">{scanResult.grade}-RANK</div>
-          </div>
-          <div className="bento-card border-l-4 border-l-ghost-blood">
-            <div className="tactical-label">위험 수치</div>
-            <div className="text-4xl font-black text-white">{scanResult.score}/100</div>
-          </div>
-          <div className="col-span-2 bento-card">
-            <div className="tactical-label">상세 위험 요소 분석</div>
-            <div className="space-y-1 mt-2">
-              {scanResult.threats.map((threat: string, idx: number) => (
-                <div key={idx} className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-tighter">
-                  <span className="w-1.5 h-1.5 bg-ghost-blood" />
-                  <span className="text-white/80">{threat}</span>
+          {scanResult.scores ? (
+            // 사진 업로드 — Horror 분석 결과
+            <>
+              <div className="bento-card border-l-4 border-l-ghost-blood">
+                <div className="tactical-label">공포 등급</div>
+                <div className="text-4xl font-black text-white">{scanResult.horrorGrade}-RANK</div>
+                <div className="text-xs text-ghost-blood mt-1">공포 {scanResult.horrorScore}/100</div>
+              </div>
+              <div className="bento-card border-l-4 border-l-ghost-neon">
+                <div className="tactical-label">위험 수치</div>
+                <div className="text-4xl font-black text-white">{scanResult.dangerScore}<span className="text-xs text-ghost-neon">/100</span></div>
+              </div>
+              <div className="bento-card">
+                <div className="tactical-label">조도</div>
+                <div className="text-xl font-bold text-white">{scanResult.scores.brightness} pts</div>
+              </div>
+              <div className="bento-card">
+                <div className="tactical-label">폐건물</div>
+                <div className="text-xl font-bold text-white">{scanResult.scores.abandoned} pts</div>
+              </div>
+              <div className="bento-card">
+                <div className="tactical-label">낙서</div>
+                <div className="text-xl font-bold text-white">{scanResult.scores.graffiti} pts</div>
+              </div>
+              <div className="bento-card">
+                <div className="tactical-label">유동인구 부족</div>
+                <div className="text-xl font-bold text-white">{scanResult.scores.lowPopulation} pts</div>
+              </div>
+              <div className="bento-card">
+                <div className="tactical-label">음산함</div>
+                <div className="text-xl font-bold text-white">{scanResult.scores.eerieEnvironment} pts</div>
+              </div>
+              <div className="bento-card">
+                <div className="tactical-label">구조 위험</div>
+                <div className="text-xl font-bold text-white">{scanResult.scores.structuralHazard} pts</div>
+              </div>
+              {scanResult.scores.rationale && (
+                <div className="col-span-2 bento-card">
+                  <div className="tactical-label">AI 분석 근거</div>
+                  <div className="text-[11px] text-white/80 leading-relaxed mt-1">{scanResult.scores.rationale}</div>
+                  {scanResult.source === 'fallback' && (
+                    <div className="text-[9px] text-ghost-purple mt-2 uppercase tracking-widest">⚠ AI 폴백 모드 (더미 점수)</div>
+                  )}
                 </div>
-              ))}
-            </div>
-            <button 
-              onClick={() => { setScanResult(null); }}
-              className="mt-6 w-full border border-ghost-purple py-3 text-[10px] text-ghost-purple font-bold uppercase hover:bg-ghost-purple hover:text-black transition-all flex items-center justify-center gap-2"
-            >
-              <RefreshCw size={12} />
-              데이터 캐시 정화
-            </button>
-          </div>
+              )}
+              <div className="col-span-2 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setIsMonsterModal(true)}
+                  className="py-4 bg-ghost-blood text-white font-black uppercase tracking-tight active:scale-95 transition-transform"
+                >
+                  사냥 개시
+                </button>
+                <button
+                  onClick={() => { setScanResult(null); setPhotoPreview(null); }}
+                  className="py-4 border border-ghost-purple text-ghost-purple font-bold uppercase tracking-tight hover:bg-ghost-purple hover:text-black transition-all flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={14} />
+                  초기화
+                </button>
+              </div>
+            </>
+          ) : (
+            // 카메라 스캔 — 기존 로직
+            <>
+              <div className="bento-card border-l-4 border-l-ghost-neon">
+                <div className="tactical-label">혼령 등급</div>
+                <div className="text-4xl font-black text-white">{scanResult.grade}-RANK</div>
+              </div>
+              <div className="bento-card border-l-4 border-l-ghost-blood">
+                <div className="tactical-label">위험 수치</div>
+                <div className="text-4xl font-black text-white">{scanResult.score}/100</div>
+              </div>
+              <div className="col-span-2 bento-card">
+                <div className="tactical-label">상세 위험 요소 분석</div>
+                <div className="space-y-1 mt-2">
+                  {scanResult.threats.map((threat: string, idx: number) => (
+                    <div key={idx} className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-tighter">
+                      <span className="w-1.5 h-1.5 bg-ghost-blood" />
+                      <span className="text-white/80">{threat}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => { setScanResult(null); }}
+                  className="mt-6 w-full border border-ghost-purple py-3 text-[10px] text-ghost-purple font-bold uppercase hover:bg-ghost-purple hover:text-black transition-all flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={12} />
+                  데이터 캐시 정화
+                </button>
+              </div>
+            </>
+          )}
         </motion.div>
       )}
 
