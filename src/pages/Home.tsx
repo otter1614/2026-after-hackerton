@@ -39,6 +39,26 @@ const dangerIcon = L.divIcon({
   iconAnchor: [16, 16],
 });
 
+// 영체 아이콘 (등급별 크기·색상 차등)
+const ghostIcon = (grade: 'S' | 'A' | 'B' | 'C') => {
+  const cfg = {
+    S: { size: 36, color: '#ff0055', glow: '#ff0055', ring: 30 },
+    A: { size: 30, color: '#ff5577', glow: '#ff0055', ring: 24 },
+    B: { size: 26, color: '#a855f7', glow: '#a855f7', ring: 18 },
+    C: { size: 22, color: '#9ca3af', glow: '#6b7280', ring: 14 },
+  }[grade];
+  return L.divIcon({
+    className: '',
+    html: `
+      <div style="position:relative;width:${cfg.size}px;height:${cfg.size}px;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;inset:0;border-radius:9999px;background:${cfg.color}33;animation:ping 1.8s cubic-bezier(0,0,0.2,1) infinite;"></div>
+        <div style="position:absolute;width:${cfg.size - 8}px;height:${cfg.size - 8}px;border-radius:9999px;background:${cfg.color};box-shadow:0 0 ${cfg.ring}px ${cfg.glow};display:flex;align-items:center;justify-content:center;color:#000;font-weight:900;font-size:${cfg.size / 2.4}px;font-family:sans-serif;">${grade}</div>
+      </div>`,
+    iconSize: [cfg.size, cfg.size],
+    iconAnchor: [cfg.size / 2, cfg.size / 2],
+  });
+};
+
 const myLocationIcon = L.divIcon({
   className: '',
   html: `
@@ -68,18 +88,21 @@ const Home = () => {
   const [ranking, setRanking] = useState<any[]>([]);
   const [myStats, setMyStats] = useState<any>(null);
   const [showCrimeZones, setShowCrimeZones] = useState(true);
+  const [ghosts, setGhosts] = useState<any[]>([]);
 
   useEffect(() => {
     const timer = setTimeout(() => setMapLoaded(true), 800);
 
     const fetchData = async () => {
       try {
-        const [rankRes, statsRes] = await Promise.all([
+        const [rankRes, statsRes, ghostRes] = await Promise.all([
           fetch('/api/ranking'),
           fetch('/api/my-stats'),
+          fetch('/api/ghosts'),
         ]);
         setRanking(await rankRes.json());
         setMyStats(await statsRes.json());
+        setGhosts(await ghostRes.json());
       } catch (error) {
         console.error('데이터 로딩 오류:', error);
       }
@@ -210,6 +233,41 @@ const Home = () => {
               icon={spotIcon(spot.grade)}
             >
               <Popup>{spot.grade}등급 영체 발견</Popup>
+            </Marker>
+          ))}
+
+          {/* 행정구 범죄밀도 기반 영체 (서버 생성) */}
+          {ghosts.map((g) => (
+            <Marker
+              key={g.id}
+              position={[g.lat, g.lng]}
+              icon={ghostIcon(g.grade)}
+            >
+              <Popup>
+                <div style={{ minWidth: 180, fontFamily: 'sans-serif' }}>
+                  <div style={{ fontWeight: 900, fontSize: 14, color: '#000' }}>{g.name}</div>
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                    {g.district} · {g.crimeType}
+                  </div>
+                  <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 4 }}>
+                    <div style={{ background: '#f3f4f6', padding: '4px 6px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: '#666' }}>등급</div>
+                      <div style={{ fontWeight: 900, fontSize: 14 }}>{g.grade}</div>
+                    </div>
+                    <div style={{ background: '#fee2e2', padding: '4px 6px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: '#991b1b' }}>HP</div>
+                      <div style={{ fontWeight: 900, fontSize: 14, color: '#991b1b' }}>{g.hp}</div>
+                    </div>
+                    <div style={{ background: '#fef3c7', padding: '4px 6px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: '#92400e' }}>ATK</div>
+                      <div style={{ fontWeight: 900, fontSize: 14, color: '#92400e' }}>{g.atk}</div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 10, color: '#666' }}>
+                    행정구 범죄밀도: <strong>{g.density}</strong>
+                  </div>
+                </div>
+              </Popup>
             </Marker>
           ))}
         </MapContainer>

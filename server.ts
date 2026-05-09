@@ -7,6 +7,7 @@ import { createServer as createViteServer } from "vite";
 import { db } from "./db";
 import type { User, HorrorReport, GhostSpot } from "./db";
 import { analyzeImage } from "./ai";
+import { getGhosts, respawnGhosts } from "./ghosts";
 
 dotenv.config();
 
@@ -256,6 +257,16 @@ async function startServer() {
       total: scored.length,
       results: scored.slice(0, limit),
     });
+  });
+
+  // 행정구 범죄밀도 기반 영체 5개 (서버 시작 시 1회 생성, 캐시)
+  app.get("/api/ghosts", (_req, res) => {
+    res.json(getGhosts());
+  });
+
+  // 영체 리스폰 (디버그/리셋용)
+  app.post("/api/ghosts/respawn", (_req, res) => {
+    res.json(respawnGhosts());
   });
 
   // safemap WMS 프록시 (서비스키 클라이언트 노출 방지)
