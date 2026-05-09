@@ -27,7 +27,8 @@ const upload = multer({
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
+  const WS_PORT = Number(process.env.WS_PORT) || 24678;
 
   app.use(express.json());
   app.use('/uploads', express.static(UPLOAD_DIR));
@@ -193,7 +194,12 @@ async function startServer() {
   // Vite middleware (개발) / 정적 (프로덕션)
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: {
+          port: WS_PORT,
+        },
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);

@@ -12,7 +12,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// 택티컬 다이아몬드 마커 (동적 스팟용)
 const spotIcon = (grade: string) =>
   L.divIcon({
     className: '',
@@ -29,7 +28,6 @@ const spotIcon = (grade: string) =>
     iconAnchor: [12, 12],
   });
 
-// 고위험 고정 마커 (창원시청 인근)
 const dangerIcon = L.divIcon({
   className: '',
   html: `
@@ -41,7 +39,6 @@ const dangerIcon = L.divIcon({
   iconAnchor: [16, 16],
 });
 
-// 내 위치 펄스 마커
 const myLocationIcon = L.divIcon({
   className: '',
   html: `
@@ -53,7 +50,6 @@ const myLocationIcon = L.divIcon({
   iconAnchor: [14, 14],
 });
 
-// 외부에서 ref로 지도 제어하기 위한 헬퍼
 const MapRefBinder: React.FC<{ onReady: (map: L.Map) => void }> = ({ onReady }) => {
   const map = useMap();
   useEffect(() => {
@@ -79,12 +75,12 @@ const Home = () => {
       try {
         const [rankRes, statsRes] = await Promise.all([
           fetch('/api/ranking'),
-          fetch('/api/my-stats')
+          fetch('/api/my-stats'),
         ]);
         setRanking(await rankRes.json());
         setMyStats(await statsRes.json());
       } catch (error) {
-        console.error("데이터 로딩 오류:", error);
+        console.error('데이터 로딩 오류:', error);
       }
     };
 
@@ -96,7 +92,6 @@ const Home = () => {
     loadSpots();
     window.addEventListener('storage', loadSpots);
 
-    // 현재 위치 가져오기
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -142,7 +137,7 @@ const Home = () => {
       exit={{ opacity: 0 }}
       className="h-full flex flex-col p-2 gap-4 overflow-y-auto"
     >
-      {/* Dashboard Section */}
+      {/* Dashboard */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bento-card bg-ghost-surface border-l-4 border-l-ghost-neon">
           <div className="tactical-label">내 평균 조도 위험 등급</div>
@@ -154,6 +149,7 @@ const Home = () => {
         </div>
       </div>
 
+      {/* 지도 */}
       <div className="relative h-[300px] bg-[#101010] overflow-hidden border-2 border-ghost-border">
         {!mapLoaded && (
           <div className="absolute inset-0 z-[500] flex flex-col items-center justify-center bg-ghost-black">
@@ -164,7 +160,6 @@ const Home = () => {
           </div>
         )}
 
-        {/* 실제 Leaflet 지도 */}
         <MapContainer
           center={initialCenter}
           zoom={14}
@@ -173,7 +168,6 @@ const Home = () => {
           style={{ width: '100%', height: '100%', background: '#0a0a0a' }}
         >
           <MapRefBinder onReady={(m) => (mapRef.current = m)} />
-          {/* CartoDB Dark Matter 다크 타일 (무료) */}
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
             subdomains={['a', 'b', 'c', 'd']}
@@ -185,19 +179,16 @@ const Home = () => {
             maxZoom={19}
           />
 
-          {/* 내 위치 */}
           {myPos && (
             <Marker position={myPos} icon={myLocationIcon}>
               <Popup>현재 위치 (수신자)</Popup>
             </Marker>
           )}
 
-          {/* 고정 위험 지역 */}
           <Marker position={CHANGWON_CENTER} icon={dangerIcon}>
             <Popup>고위험군 상시감시 구역</Popup>
           </Marker>
 
-          {/* 동적 고스트 스팟 */}
           {dynamicSpots.map((spot) => (
             <Marker
               key={spot.id}
@@ -209,20 +200,25 @@ const Home = () => {
           ))}
         </MapContainer>
 
-        {/* 스캔라인 + HUD 오버레이 (지도 위) */}
         <div className="scan-line absolute inset-0 pointer-events-none z-[400]" />
 
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-[450]">
-          <div className="bg-black/80 border border-ghost-border p-3 backdrop-blur-md">
-            <div className="tactical-label">활성 작전 구역</div>
-            <div className="text-lg font-black tracking-tighter uppercase leading-none text-white">
+        <div
+          className="absolute top-3 left-3 right-3 flex justify-between items-start pointer-events-none z-[450]"
+          style={{ textShadow: '0 0 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9)' }}
+        >
+          <div className="opacity-80">
+            <div className="tactical-label !text-[8px]">활성 작전 구역</div>
+            <div className="text-xs font-black tracking-tighter uppercase leading-none text-white/90">
               CHANGWON_CITY
+            </div>
+            <div className="text-[8px] text-ghost-purple/90 italic mt-0.5 font-bold">
+              {(myPos ?? CHANGWON_CENTER)[0].toFixed(4)}° N, {(myPos ?? CHANGWON_CENTER)[1].toFixed(4)}° E
             </div>
           </div>
 
-          <div className="bg-black/80 border border-ghost-border p-3 backdrop-blur-md flex flex-col items-end">
-            <div className="tactical-label">탐지된 영체 수</div>
-            <div className="text-lg font-black text-ghost-neon animate-pulse leading-none uppercase">
+          <div className="opacity-80 flex flex-col items-end">
+            <div className="tactical-label !text-[8px]">탐지된 영체 수</div>
+            <div className="text-xs font-black text-ghost-neon/90 animate-pulse leading-none uppercase">
               {dynamicSpots.length < 10 ? `0${dynamicSpots.length}` : dynamicSpots.length} ACTIVE
             </div>
           </div>
@@ -243,7 +239,7 @@ const Home = () => {
         </button>
       </div>
 
-      {/* Ranking List Section */}
+      {/* Ranking */}
       <div className="bento-card flex-1 bg-ghost-surface border border-ghost-border overflow-hidden flex flex-col">
         <div className="flex justify-between items-center mb-4">
           <span className="tactical-label">TOP 10 공포 수집가 랭킹</span>

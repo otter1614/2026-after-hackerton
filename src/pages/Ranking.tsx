@@ -19,13 +19,13 @@ const Ranking = () => {
       className="p-4 space-y-6"
     >
       <div className="text-center mb-10">
-        <h2 className="text-4xl font-black tracking-tighter text-ghost-neon uppercase leading-none mb-1">
+        <h2 className="text-4xl font-black tracking-tighter text-ghost-crimson uppercase leading-none mb-1">
           최정예 헌터 랭킹
         </h2>
         <div className="flex items-center justify-center gap-2">
-          <div className="w-8 h-[1px] bg-ghost-purple" />
-          <p className="text-[10px] font-bold text-ghost-purple uppercase tracking-[0.4em]">Hunter Records v4</p>
-          <div className="w-8 h-[1px] bg-ghost-purple" />
+          <div className="w-8 h-[1px] bg-ghost-cream/70" />
+          <p className="text-[10px] font-bold text-ghost-cream uppercase tracking-[0.4em]">Hunter Records v4</p>
+          <div className="w-8 h-[1px] bg-ghost-cream/70" />
         </div>
       </div>
 
@@ -37,10 +37,10 @@ const Ranking = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: idx * 0.1 }}
             className={`bento-card flex items-center gap-4 relative ${
-              idx === 0 ? 'border-2 border-ghost-neon bg-ghost-neon/5' : ''
+              idx === 0 ? 'border-2 border-ghost-crimson bg-ghost-crimson/10' : ''
             }`}
           >
-            <div className={`text-xl font-black w-8 ${idx === 0 ? 'text-ghost-neon' : 'text-[#666]'}`}>
+            <div className={`text-xl font-black w-8 ${idx === 0 ? 'text-ghost-crimson' : 'text-[#666]'}`}>
               {idx + 1 < 10 ? `0${idx + 1}` : idx + 1}
             </div>
             
@@ -49,7 +49,7 @@ const Ranking = () => {
                 {user.name}
               </div>
               <div className="flex items-center gap-2 text-[10px] font-bold text-[#666]">
-                <span className="text-ghost-neon uppercase">LVL {user.level}</span>
+                <span className="text-ghost-crimson uppercase">LVL {user.level}</span>
                 <span className="w-1 h-1 bg-[#333] rounded-full" />
                 <span>{user.points.toLocaleString()} PTS</span>
               </div>
@@ -61,7 +61,7 @@ const Ranking = () => {
             </div>
 
             {idx === 0 && (
-              <div className="absolute top-0 right-0 px-2 py-0.5 bg-ghost-neon text-black text-[9px] font-black uppercase tracking-tighter">
+              <div className="absolute top-0 right-0 px-2 py-0.5 bg-ghost-crimson text-black text-[9px] font-black uppercase tracking-tighter">
                 CHAMPION
               </div>
             )}
@@ -71,11 +71,11 @@ const Ranking = () => {
 
       {/* User Stats Card (Bento Style) */}
       <div className="mt-8 grid grid-cols-2 gap-4">
-        <div className="bento-card border-ghost-purple/50">
+        <div className="bento-card border-ghost-ember/30">
           <span className="tactical-label">전 세계 순위</span>
           <div className="text-3xl font-black text-white">#1,245</div>
         </div>
-        <div className="bento-card border-ghost-purple/50">
+        <div className="bento-card border-ghost-ember/30">
           <span className="tactical-label">보유 C-코인</span>
           <div className="text-3xl font-black text-white">2,450</div>
         </div>

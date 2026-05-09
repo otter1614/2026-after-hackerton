@@ -183,8 +183,8 @@ const Explore = () => {
       className="p-4 space-y-6 flex flex-col h-full"
     >
       {/* 상단 정보 */}
-      <div className="flex items-center gap-3 bg-ghost-surface border border-ghost-border p-3">
-        <MapPin size={18} className="text-ghost-purple shrink-0" />
+      <div className="ghost-panel flex items-center gap-3">
+        <MapPin size={18} className="text-ghost-crimson shrink-0" />
         <div className="flex-1 overflow-hidden">
           <div className="tactical-label">현재 작전 지역</div>
           <div className="text-sm font-bold truncate tracking-tighter uppercase">{currentArea}</div>
@@ -194,9 +194,9 @@ const Explore = () => {
       {/* 실시간 카메라 프리뷰 */}
       <div className="bento-card !p-2 flex flex-col gap-2 relative">
         <div className="flex justify-between items-center px-1">
-          <span className="text-[10px] bg-ghost-neon text-black px-1 font-bold tracking-tighter">실시간_스캔_채널_01</span>
-          <span className="text-[10px] text-ghost-neon flex items-center gap-1 font-bold">
-            <span className="w-1.5 h-1.5 bg-ghost-neon rounded-full animate-pulse" />
+          <span className="text-[10px] bg-ghost-crimson text-black px-1 font-bold tracking-tighter">실시간_스캔_채널_01</span>
+          <span className="text-[10px] text-ghost-crimson flex items-center gap-1 font-bold">
+            <span className="w-1.5 h-1.5 bg-ghost-crimson rounded-full animate-pulse" />
             LIVE SCANNING
           </span>
         </div>
@@ -225,8 +225,8 @@ const Explore = () => {
           <canvas ref={canvasRef} className="hidden" />
           
           {/* 뷰파인더 그래픽 */}
-          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'repeating-linear-gradient(0deg, #000, #000 2px, #00ff00 3px)' }} />
-          <div className="absolute inset-4 border border-ghost-neon/20 pointer-events-none" />
+          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'repeating-linear-gradient(0deg, #000, #000 2px, rgba(217,63,79,0.1) 3px)' }} />
+          <div className="absolute inset-4 border border-ghost-crimson/20 pointer-events-none" />
 
           <AnimatePresence>
             {isScanning && (
@@ -234,10 +234,10 @@ const Explore = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-[#00ff0011] backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center z-20"
+                className="absolute inset-0 bg-ghost-blood/10 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center z-20"
               >
                 <div className="scan-line" />
-                <h3 className="text-xl font-black tracking-widest text-ghost-neon mb-2">잔류 에너지 분석 중...</h3>
+                <h3 className="text-xl font-black tracking-widest text-ghost-cream mb-2">잔류 에너지 분석 중...</h3>
                 <div className="text-[10px] font-bold text-white/50 animate-pulse tracking-[0.4em]">DECRYPTING_SIGNATURES</div>
               </motion.div>
             )}
